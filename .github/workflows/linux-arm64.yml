@@ -7,10 +7,24 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/linux-arm64.yml'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
-  build-linux:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux ARM64
+            artifact_name: wnnm-linux-armv8
+            cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math"
+          - name: Linux ARM64 SVE
+            artifact_name: wnnm-linux-armv8+sve
+            cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math -march=armv8-a+sve"
+
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04-arm
+
     steps:
     - name: Checkout repo
       uses: actions/checkout@v6
@@ -34,11 +48,12 @@ jobs:
       run: pip install ninja
 
     - name: Configure
-      run: cmake -S . -B build -G Ninja -LA
+      run: >-
+        cmake -S . -B build -G Ninja -LA
         -D CMAKE_BUILD_TYPE=Release
-        -D CMAKE_CXX_FLAGS="-Wall -ffast-math"
+        -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
         -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
+        ${{ matrix.cmake_args }}
 
     - name: Build
       run: cmake --build build --verbose
@@ -50,26 +65,5 @@ jobs:
       uses: actions/upload-artifact@v7
       if: true
       with:
-        name: wnnm-linux-armv8
+        name: ${{ matrix.artifact_name }}
         path: install/lib/*.so
-
-    - name: Configure (SVE)
-      run: cmake -S . -B build_sve -G Ninja -LA
-        -D CMAKE_BUILD_TYPE=Release
-        -D CMAKE_CXX_FLAGS="-Wall -ffast-math -march=armv8-a+sve"
-        -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
-
-    - name: Build (SVE)
-      run: cmake --build build_sve --verbose
-
-    - name: Install (SVE)
-      run: cmake --install build_sve --prefix install_sve
-
-    - name: Upload (SVE)
-      uses: actions/upload-artifact@v7
-      if: true
-      with:
-        name: wnnm-linux-armv8+sve
-        path: install_sve/lib/*.so
-
