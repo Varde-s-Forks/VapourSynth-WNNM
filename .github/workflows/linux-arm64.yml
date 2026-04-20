@@ -9,8 +9,13 @@ on:
   workflow_dispatch:
   workflow_call:
 
+env:
+  ARMPL_VERSION: 26.01
+
 jobs:
   build:
+    outputs:
+      armpl_version: ${{ steps.version.outputs.version }}
     strategy:
       fail-fast: false
       matrix:
@@ -28,17 +33,29 @@ jobs:
     runs-on: ubuntu-24.04-arm
 
     steps:
+    - name: Export Version
+      id: version
+      run: echo "version=${{ env.ARMPL_VERSION }}" >> "$GITHUB_OUTPUT"
+
     - name: Checkout repo
       uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
+    - name: Cache ArmPL
+      id: cache-armpl
+      uses: actions/cache@v5
+      with:
+        path: /opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc
+        key: armpl-${{ runner.os }}-${{ runner.arch }}-${{ env.ARMPL_VERSION }}
+
     - name: Setup ArmPL
+      if: steps.cache-armpl.outputs.cache-hit != 'true'
       run: |
-        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_26.01/arm-performance-libraries_26.01_deb_gcc.tar
+        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_${{ env.ARMPL_VERSION }}/arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb_gcc.tar
         tar -xf armpl.tar
-        sudo arm-performance-libraries_26.01_deb/arm-performance-libraries_26.01_deb.sh -a
-        /opt/arm/armpl_26.01_gcc/bin/armpl-info
+        sudo arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb/arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb.sh -a
+        /opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc/bin/armpl-info
 
     - name: Download VapourSynth headers
       run: |
@@ -55,7 +72,7 @@ jobs:
         -D CMAKE_BUILD_TYPE=Release
         -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
         -D WNNM_OUTPUT_NAME="${{ matrix.output_name }}"
-        -D ARMPL_HOME=/opt/arm/armpl_26.01_gcc
+        -D ARMPL_HOME="/opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc"
         ${{ matrix.cmake_args }}
 
     - name: Build
@@ -80,3 +97,5 @@ jobs:
       artifact_pattern: wnnm-linux-armv8  # Skips SVE
       artifact_path: install/lib
       build_sdist: false
+      setup_armpl: true
+      armpl_version: ${{ needs.build.outputs.armpl_version }}

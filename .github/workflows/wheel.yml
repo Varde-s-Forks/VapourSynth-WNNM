@@ -16,6 +16,14 @@ on:
         required: false
         type: boolean
         default: false
+      setup_armpl:
+        required: false
+        type: boolean
+        default: false
+      armpl_version:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build-wheel:
@@ -35,6 +43,24 @@ jobs:
           pattern: ${{ inputs.artifact_pattern }}
           path: ${{ inputs.artifact_path }}
           merge-multiple: true
+
+      - name: Cache ArmPL
+        id: cache-armpl
+        if: inputs.setup_armpl
+        uses: actions/cache@v5
+        with:
+          path: "/opt/arm/armpl_${{ inputs.armpl_version }}_gcc"
+          key: armpl-${{ runner.os }}-${{ runner.arch }}-${{ inputs.armpl_version }}
+
+      - name: Check ArmPL
+        if: inputs.setup_armpl && steps.cache-armpl.outputs.cache-hit != 'true'
+        run: echo "Cache was not hit" && exit 1
+
+      - name: Configure ArmPL
+        if: inputs.setup_armpl
+        run: |
+          "/opt/arm/armpl_${{ inputs.armpl_version }}_gcc/bin/armpl-info"
+          echo "LD_LIBRARY_PATH=/opt/arm/armpl_${{ inputs.armpl_version }}_gcc/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
       - name: Build wheel
         run: uv build --wheel
