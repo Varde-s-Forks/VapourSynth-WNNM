@@ -56,7 +56,7 @@ jobs:
 
     - name: Download Vector Class Library
       run: |
-        curl -s -o vcl.zip -L https://github.com/vectorclass/version2/archive/refs/tags/v2.01.04.zip
+        curl -s -o vcl.zip -L https://github.com/vectorclass/version2/archive/refs/tags/v2.02.03.zip
         unzip -q vcl.zip
         mv version2*/ vectorclass
 
