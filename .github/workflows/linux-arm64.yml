@@ -35,10 +35,10 @@ jobs:
 
     - name: Setup ArmPL
       run: |
-        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_24.10/arm-performance-libraries_24.10_deb_gcc.tar
+        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_26.01/arm-performance-libraries_26.01_deb_gcc.tar
         tar -xf armpl.tar
-        sudo arm-performance-libraries_24.10_deb/arm-performance-libraries_24.10_deb.sh -a
-        /opt/arm/armpl_24.10_gcc/bin/armpl-info
+        sudo arm-performance-libraries_26.01_deb/arm-performance-libraries_26.01_deb.sh -a
+        /opt/arm/armpl_26.01_gcc/bin/armpl-info
 
     - name: Download VapourSynth headers
       run: |
@@ -55,7 +55,7 @@ jobs:
         -D CMAKE_BUILD_TYPE=Release
         -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
         -D WNNM_OUTPUT_NAME="${{ matrix.output_name }}"
-        -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
+        -D ARMPL_HOME=/opt/arm/armpl_26.01_gcc
         ${{ matrix.cmake_args }}
 
     - name: Build
