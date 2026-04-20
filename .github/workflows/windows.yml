@@ -9,7 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'which tag to upload to'
+        type: string
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: false
         default: ''
 
 jobs:
@@ -78,31 +85,36 @@ jobs:
       run: cmake --build build --verbose
 
     - name: Install
-      run: |
-        cmake --install build --prefix install
-        mkdir artifact
-        copy install\bin\wnnm.dll artifact\
+      run: cmake --install build --prefix install
 
     - name: Upload
       uses: actions/upload-artifact@v7
       with:
         name: wnnm-windows-x64
-        path: artifact
+        path: install/bin/*.dll
 
     - name: Compress artifact for release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag != ''
+      if: inputs.tag != ''
       run: |
-        cd artifact
+        cd install/bin
 
-        mkdir VapourSynth-WNNM-${{ github.event.inputs.tag }}
-        7z a -t7z -mx=9 ../VapourSynth-WNNM-${{ github.event.inputs.tag }}.7z wnnm.dll
+        mkdir VapourSynth-WNNM-${{ inputs.tag }}
+        7z a -t7z -mx=9 ../VapourSynth-WNNM-${{ inputs.tag }}.7z wnnm.dll
 
-    - name: Release
-      uses: softprops/action-gh-release@v3
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag != ''
+    - name: Upload release assets
+      if: inputs.tag != ''
+      uses: actions/upload-artifact@v7
       with:
-        tag_name: ${{ github.event.inputs.tag }}
-        files: VapourSynth-WNNM-${{ github.event.inputs.tag }}.7z
-        fail_on_unmatched_files: true
-        generate_release_notes: false
-        prerelease: true
+        name: release-assets
+        path: |
+          install/VapourSynth-WNNM-${{ inputs.tag }}.7z
+
+  build-wheel:
+    name: Package Wheel (Windows)
+    needs: build-windows
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: windows-latest
+      artifact_pattern: wnnm-windows-x64
+      artifact_path: install/bin
+      build_sdist: false

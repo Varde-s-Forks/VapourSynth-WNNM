@@ -7,6 +7,7 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/linux.yml'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   build:
@@ -66,3 +67,12 @@ jobs:
         name: wnnm-linux
         path: install/lib/*.so
 
+  build-wheel-x64:
+    name: Package Wheel (Linux - x64)
+    needs: build
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: ubuntu-24.04
+      artifact_pattern: wnnm-linux
+      artifact_path: install/lib
+      build_sdist: false

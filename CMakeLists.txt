@@ -4,6 +4,7 @@ project(vs-wnnm VERSION 0.1 LANGUAGES CXX)
 
 set(VCL_HOME "" CACHE PATH "Path to vector class v2 headers")
 set(ARMPL_HOME "" CACHE PATH "Path to Arm Performance Libraries")
+set(WNNM_OUTPUT_NAME "wnnm" CACHE STRING "Output filename for the plugin library")
 
 add_library(wnnm SHARED source/wnnm.cpp)
 
@@ -29,6 +30,7 @@ set_target_properties(wnnm PROPERTIES
     CXX_EXTENSIONS OFF
     CXX_STANDARD 17
     CXX_STANDARD_REQUIRED ON
+    OUTPUT_NAME "${WNNM_OUTPUT_NAME}"
 )
 
 find_package(PkgConfig QUIET MODULE)

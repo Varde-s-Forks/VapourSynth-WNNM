@@ -17,9 +17,11 @@ jobs:
         include:
           - name: Linux ARM64
             artifact_name: wnnm-linux-armv8
+            output_name: wnnm
             cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math"
           - name: Linux ARM64 SVE
             artifact_name: wnnm-linux-armv8+sve
+            output_name: wnnm-sve
             cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math -march=armv8-a+sve"
 
     name: ${{ matrix.name }}
@@ -52,6 +54,7 @@ jobs:
         cmake -S . -B build -G Ninja -LA
         -D CMAKE_BUILD_TYPE=Release
         -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
+        -D WNNM_OUTPUT_NAME="${{ matrix.output_name }}"
         -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
         ${{ matrix.cmake_args }}
 
@@ -66,4 +69,14 @@ jobs:
       if: true
       with:
         name: ${{ matrix.artifact_name }}
-        path: install/lib/*.so
+        path: install/lib/lib${{ matrix.output_name }}.so
+
+  build-wheel-arm64:
+    name: Package Wheel (Linux - ARM64)
+    needs: build
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: ubuntu-24.04-arm
+      artifact_pattern: wnnm-linux-armv8  # Skips SVE
+      artifact_path: install/lib
+      build_sdist: false
