@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-24.04
     steps:
     - name: Checkout repo
@@ -45,9 +45,11 @@ jobs:
         -D CMAKE_CXX_COMPILER=g++
         -D CMAKE_CXX_FLAGS="-Wall -mavx2 -mfma -ffast-math"
         -D MKL_DIR=/opt/intel/oneapi/mkl/latest/lib/cmake/mkl
-        -D MKL_LINK=static -D MKL_THREADING=sequential -D MKL_INTERFACE=lp64
-        -D VCL_HOME="`pwd`/vectorclass"
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
+        -D MKL_LINK=static
+        -D MKL_THREADING=sequential
+        -D MKL_INTERFACE=lp64
+        -D VCL_HOME="$(pwd)/vectorclass"
+        -D VS_INCLUDE_DIR="$(pwd)/vapoursynth/include"
       env:
         CXX: g++-11
 
