@@ -14,14 +14,14 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     defaults:
       run:
         shell: cmd
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -30,7 +30,7 @@ jobs:
 
     - name: Cache oneMKL
       id: cache-onemkl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\mkl
         key: ${{ runner.os }}-onemkl-2022.2.0
@@ -84,7 +84,7 @@ jobs:
         copy install\bin\wnnm.dll artifact\
 
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: wnnm-windows-x64
         path: artifact
@@ -98,7 +98,7 @@ jobs:
         7z a -t7z -mx=9 ../VapourSynth-WNNM-${{ github.event.inputs.tag }}.7z wnnm.dll
 
     - name: Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag != ''
       with:
         tag_name: ${{ github.event.inputs.tag }}

@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -47,7 +47,7 @@ jobs:
       run: cmake --install build --prefix install
 
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: true
       with:
         name: wnnm-linux-armv8
@@ -67,7 +67,7 @@ jobs:
       run: cmake --install build_sve --prefix install_sve
 
     - name: Upload (SVE)
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: true
       with:
         name: wnnm-linux-armv8+sve
