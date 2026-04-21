@@ -9,19 +9,26 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'which tag to upload to'
+        type: string
+        required: false
+        default: ''
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: false
         default: ''
 
 jobs:
   build-windows:
-    runs-on: windows-2022
+    runs-on: windows-latest
     defaults:
       run:
         shell: cmd
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -30,15 +37,15 @@ jobs:
 
     - name: Cache oneMKL
       id: cache-onemkl
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\mkl
-        key: ${{ runner.os }}-onemkl-2022.2.0
+        key: ${{ runner.os }}-onemkl-2025.3.1
 
     - name: Setup oneMKL
       if: steps.cache-onemkl.outputs.cache-hit != 'true'
       run: |
-        curl -s -o onemkl.exe -L https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18899/w_onemkl_p_2022.2.0.9563_offline.exe
+        curl -s -o onemkl.exe -L https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ae472ff5-aa01-4a72-a452-ce7b559ef041/intel-onemkl-2025.3.1.10_offline.exe
         onemkl.exe -s -a --silent --eula accept
 
     - name: Download VapourSynth headers
@@ -49,7 +56,7 @@ jobs:
 
     - name: Download Vector Class Library
       run: |
-        curl -s -o vcl.zip -L https://github.com/vectorclass/version2/archive/refs/tags/v2.01.04.zip
+        curl -s -o vcl.zip -L https://github.com/vectorclass/version2/archive/refs/tags/v2.02.03.zip
         unzip -q vcl.zip
         mv version2*/ vectorclass
 
@@ -59,7 +66,7 @@ jobs:
     - name: Setup LLVM
       shell: bash
       run: |
-        curl -s -o llvm-win64.exe -LJO https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/LLVM-19.1.7-win64.exe
+        curl -s -o llvm-win64.exe -LJO https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.3/LLVM-22.1.3-win64.exe
         7z x -ollvm llvm-win64.exe
 
     - name: Configure
@@ -78,31 +85,36 @@ jobs:
       run: cmake --build build --verbose
 
     - name: Install
-      run: |
-        cmake --install build --prefix install
-        mkdir artifact
-        copy install\bin\wnnm.dll artifact\
+      run: cmake --install build --prefix install
 
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v7
       with:
         name: wnnm-windows-x64
-        path: artifact
+        path: install/bin/*.dll
 
     - name: Compress artifact for release
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag != ''
+      if: inputs.tag != ''
       run: |
-        cd artifact
+        cd install/bin
 
-        mkdir VapourSynth-WNNM-${{ github.event.inputs.tag }}
-        7z a -t7z -mx=9 ../VapourSynth-WNNM-${{ github.event.inputs.tag }}.7z wnnm.dll
+        mkdir VapourSynth-WNNM-${{ inputs.tag }}
+        7z a -t7z -mx=9 ../VapourSynth-WNNM-${{ inputs.tag }}.7z wnnm.dll
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.tag != ''
+    - name: Upload release assets
+      if: inputs.tag != ''
+      uses: actions/upload-artifact@v7
       with:
-        tag_name: ${{ github.event.inputs.tag }}
-        files: VapourSynth-WNNM-${{ github.event.inputs.tag }}.7z
-        fail_on_unmatched_files: true
-        generate_release_notes: false
-        prerelease: true
+        name: release-assets
+        path: |
+          install/VapourSynth-WNNM-${{ inputs.tag }}.7z
+
+  build-wheel:
+    name: Package Wheel (Windows)
+    needs: build-windows
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: windows-latest
+      artifact_pattern: wnnm-windows-x64
+      artifact_path: install/bin
+      build_sdist: false
