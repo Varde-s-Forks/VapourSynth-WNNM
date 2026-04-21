@@ -40,12 +40,12 @@ jobs:
       uses: actions/cache@v5
       with:
         path: C:\Program Files (x86)\Intel\oneAPI\mkl
-        key: ${{ runner.os }}-onemkl-2025.3.1
+        key: ${{ runner.os }}-onemkl-2022.2.0
 
     - name: Setup oneMKL
       if: steps.cache-onemkl.outputs.cache-hit != 'true'
       run: |
-        curl -s -o onemkl.exe -L https://registrationcenter-download.intel.com/akdlm/IRC_NAS/ae472ff5-aa01-4a72-a452-ce7b559ef041/intel-onemkl-2025.3.1.10_offline.exe
+        curl -s -o onemkl.exe -L https://registrationcenter-download.intel.com/akdlm/IRC_NAS/18899/w_onemkl_p_2022.2.0.9563_offline.exe
         onemkl.exe -s -a --silent --eula accept
 
     - name: Download VapourSynth headers
