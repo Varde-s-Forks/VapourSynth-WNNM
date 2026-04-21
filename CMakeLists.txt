@@ -5,6 +5,7 @@ project(vs-wnnm VERSION 0.1 LANGUAGES CXX)
 set(VCL_HOME "" CACHE PATH "Path to vector class v2 headers")
 set(ARMPL_HOME "" CACHE PATH "Path to Arm Performance Libraries")
 set(WNNM_OUTPUT_NAME "wnnm" CACHE STRING "Output filename for the plugin library")
+option(WNNM_STATIC_ARMPL "Link ArmPL statically" OFF)
 
 add_library(wnnm SHARED source/wnnm.cpp)
 
@@ -19,9 +20,18 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64.*|AARCH64.*|arm64.*|ARM64.*|arm
     target_include_directories(wnnm PRIVATE "${TEMP_PATH}")
 
     cmake_path(APPEND TEMP_PATH "${ARMPL_HOME}" "lib")
-    target_link_directories(wnnm PRIVATE "${TEMP_PATH}")
 
-    target_link_libraries(wnnm PRIVATE armpl_lp64)
+    if(WNNM_STATIC_ARMPL)
+        find_library(ARMPL_LIB NAMES libarmpl_lp64.a PATHS "${TEMP_PATH}" NO_DEFAULT_PATH)
+        if(NOT ARMPL_LIB)
+            message(FATAL_ERROR "Static ArmPL library not found in ${TEMP_PATH}")
+        endif()
+        target_link_libraries(wnnm PRIVATE ${ARMPL_LIB} m)
+        target_link_options(wnnm PRIVATE -static-libgcc -static-libstdc++ -static-libgfortran)
+    else()
+        target_link_directories(wnnm PRIVATE "${TEMP_PATH}")
+        target_link_libraries(wnnm PRIVATE armpl_lp64)
+    endif()
  else()
     message(SEND_ERROR "unknown target: ${CMAKE_SYSTEM_PROCESSOR}")
  endif()

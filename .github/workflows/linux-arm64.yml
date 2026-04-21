@@ -73,6 +73,7 @@ jobs:
         -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
         -D WNNM_OUTPUT_NAME="${{ matrix.output_name }}"
         -D ARMPL_HOME="/opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc"
+        -D WNNM_STATIC_ARMPL=ON
         ${{ matrix.cmake_args }}
 
     - name: Build
