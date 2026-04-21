@@ -21,7 +21,7 @@ on:
 
 jobs:
   build-windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     defaults:
       run:
         shell: cmd
@@ -114,7 +114,7 @@ jobs:
     needs: build-windows
     uses: ./.github/workflows/wheel.yml
     with:
-      os: windows-latest
+      os: windows-2022
       artifact_pattern: wnnm-windows-x64
       artifact_path: install/bin
       build_sdist: false
