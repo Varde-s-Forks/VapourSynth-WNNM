@@ -7,22 +7,55 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/linux-arm64.yml'
   workflow_dispatch:
+  workflow_call:
+
+env:
+  ARMPL_VERSION: 26.01
 
 jobs:
-  build-linux:
+  build:
+    outputs:
+      armpl_version: ${{ steps.version.outputs.version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux ARM64
+            artifact_name: wnnm-linux-armv8
+            output_name: wnnm
+            cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math"
+          - name: Linux ARM64 SVE
+            artifact_name: wnnm-linux-armv8+sve
+            output_name: wnnm-sve
+            cmake_args: -D CMAKE_CXX_FLAGS="-Wall -ffast-math -march=armv8-a+sve"
+
+    name: ${{ matrix.name }}
     runs-on: ubuntu-24.04-arm
+
     steps:
+    - name: Export Version
+      id: version
+      run: echo "version=${{ env.ARMPL_VERSION }}" >> "$GITHUB_OUTPUT"
+
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
+    - name: Cache ArmPL
+      id: cache-armpl
+      uses: actions/cache@v5
+      with:
+        path: /opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc
+        key: armpl-${{ runner.os }}-${{ runner.arch }}-${{ env.ARMPL_VERSION }}
+
     - name: Setup ArmPL
+      if: steps.cache-armpl.outputs.cache-hit != 'true'
       run: |
-        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_24.10/arm-performance-libraries_24.10_deb_gcc.tar
+        wget -q -O armpl.tar https://developer.arm.com/-/cdn-downloads/permalink/Arm-Performance-Libraries/Version_${{ env.ARMPL_VERSION }}/arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb_gcc.tar
         tar -xf armpl.tar
-        sudo arm-performance-libraries_24.10_deb/arm-performance-libraries_24.10_deb.sh -a
-        /opt/arm/armpl_24.10_gcc/bin/armpl-info
+        sudo arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb/arm-performance-libraries_${{ env.ARMPL_VERSION }}_deb.sh -a
+        /opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc/bin/armpl-info
 
     - name: Download VapourSynth headers
       run: |
@@ -34,11 +67,14 @@ jobs:
       run: pip install ninja
 
     - name: Configure
-      run: cmake -S . -B build -G Ninja -LA
+      run: >-
+        cmake -S . -B build -G Ninja -LA
         -D CMAKE_BUILD_TYPE=Release
-        -D CMAKE_CXX_FLAGS="-Wall -ffast-math"
-        -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
+        -D VS_INCLUDE_DIR="${{ github.workspace }}/vapoursynth/include"
+        -D WNNM_OUTPUT_NAME="${{ matrix.output_name }}"
+        -D ARMPL_HOME="/opt/arm/armpl_${{ env.ARMPL_VERSION }}_gcc"
+        -D WNNM_STATIC_ARMPL=ON
+        ${{ matrix.cmake_args }}
 
     - name: Build
       run: cmake --build build --verbose
@@ -47,29 +83,20 @@ jobs:
       run: cmake --install build --prefix install
 
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: true
       with:
-        name: wnnm-linux-armv8
-        path: install/lib/*.so
+        name: ${{ matrix.artifact_name }}
+        path: install/lib/lib${{ matrix.output_name }}.so
 
-    - name: Configure (SVE)
-      run: cmake -S . -B build_sve -G Ninja -LA
-        -D CMAKE_BUILD_TYPE=Release
-        -D CMAKE_CXX_FLAGS="-Wall -ffast-math -march=armv8-a+sve"
-        -D ARMPL_HOME=/opt/arm/armpl_24.10_gcc
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
-
-    - name: Build (SVE)
-      run: cmake --build build_sve --verbose
-
-    - name: Install (SVE)
-      run: cmake --install build_sve --prefix install_sve
-
-    - name: Upload (SVE)
-      uses: actions/upload-artifact@v4
-      if: true
-      with:
-        name: wnnm-linux-armv8+sve
-        path: install_sve/lib/*.so
-
+  build-wheel-arm64:
+    name: Package Wheel (Linux - ARM64)
+    needs: build
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: ubuntu-24.04-arm
+      artifact_pattern: wnnm-linux-armv8  # Skips SVE
+      artifact_path: install/lib
+      build_sdist: false
+      setup_armpl: true
+      armpl_version: ${{ needs.build.outputs.armpl_version }}

@@ -7,13 +7,17 @@ on:
       - 'CMakeLists.txt'
       - '.github/workflows/linux.yml'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
-  build-linux:
+  build:
     runs-on: ubuntu-24.04
+    env:
+      ONEMKL_VERSION: 2025.3.1
+
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -22,7 +26,8 @@ jobs:
         wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt update
-        sudo apt install intel-oneapi-mkl-devel
+        ONEMKL_PKG_VERSION="$(apt-cache madison intel-oneapi-mkl-devel | awk -v version="$ONEMKL_VERSION" '$0 ~ version {print $3; exit}')"
+        sudo apt install "intel-oneapi-mkl-devel=${ONEMKL_PKG_VERSION}"
 
     - name: Download VapourSynth headers
       run: |
@@ -45,9 +50,11 @@ jobs:
         -D CMAKE_CXX_COMPILER=g++
         -D CMAKE_CXX_FLAGS="-Wall -mavx2 -mfma -ffast-math"
         -D MKL_DIR=/opt/intel/oneapi/mkl/latest/lib/cmake/mkl
-        -D MKL_LINK=static -D MKL_THREADING=sequential -D MKL_INTERFACE=lp64
-        -D VCL_HOME="`pwd`/vectorclass"
-        -D VS_INCLUDE_DIR="`pwd`/vapoursynth/include"
+        -D MKL_LINK=static
+        -D MKL_THREADING=sequential
+        -D MKL_INTERFACE=lp64
+        -D VCL_HOME="$(pwd)/vectorclass"
+        -D VS_INCLUDE_DIR="$(pwd)/vapoursynth/include"
       env:
         CXX: g++-11
 
@@ -58,9 +65,18 @@ jobs:
       run: cmake --install build --prefix install
 
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: true
       with:
         name: wnnm-linux
         path: install/lib/*.so
 
+  build-wheel-x64:
+    name: Package Wheel (Linux - x64)
+    needs: build
+    uses: ./.github/workflows/wheel.yml
+    with:
+      os: ubuntu-24.04
+      artifact_pattern: wnnm-linux
+      artifact_path: install/lib
+      build_sdist: false
